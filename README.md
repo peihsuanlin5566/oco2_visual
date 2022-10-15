@@ -26,3 +26,4 @@ This repository places the tools for eazily generating CO2 observation map with 
 
 ## Usage
 
+Following the instruction in `src/run.py`. 
