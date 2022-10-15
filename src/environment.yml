@@ -1,0 +1,13 @@
+name: oco2
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.7
+  - matplotlib
+  - basemap
+  - pillow
+  - netCDF4
+  - basemap-data-hires
+  - notebook
+  - ipykernel
