@@ -20,7 +20,7 @@ if __name__ == "__main__":
     mpl.rc('font', **font)
 
     # place where the data are placed
-    path_dir = '../../data/data_xco2/oco2_LtCO2_*.nc4'
+    path_dir = '../../data/data_xco2/'
     
     # grid size (10: ~10 km per mesh grid)
     grid_size = 5

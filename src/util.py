@@ -54,7 +54,9 @@ def __gen_filelist(path_dir):
         date_infor_all: date stamp of all the files (datetime.datetime(2014, 9, 6, 0, 0)) 
     
     """
-    flist2 = np.array(glob(path_dir))
+    if path_dir[-1] != '/': 
+        path_dir = path_dir + '/'
+    flist2 = np.array(glob(path_dir+'*.nc4'))
     date_infor = np.array([  datetime.strptime('20'+ os.path.split(x)[1][-37:-31], '%Y%m%d')  for x in flist2])
     flist_all = flist2[np.argsort(date_infor)]
     date_infor_all = np.sort(date_infor)
@@ -242,10 +244,8 @@ def fig_point_plot(path_dir, time_yy, years=1 ,\
     
     useful_file = __get_useful_file(path_dir, time_yy, years=years)
 
-
     plt.close()
     plt.clf()
-
     
     ax = plt.subplot()
     divider = make_axes_locatable(ax)
