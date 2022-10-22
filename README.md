@@ -20,7 +20,7 @@ This repository places the tools for eazily generating CO2 observation map with 
 
 
 1. Before setting up the envirnment, you have to ensure you have already with [conda](https://conda.io/projects/conda/en/latest/user-guide/install/index.html#installing-conda-on-a-system-that-has-other-python-installations-or-packages) installed. 
-2. cd into src, run `conda env create -f environment.yml`. 
+2. Run `conda env create -f environment.yml`. 
 3. Run `conda activate oco2` to activate the `oco2` environment. 
 
 

@@ -20,6 +20,7 @@ def __get_data2(fn):
         latitude, longitude: location 
         time: date & time when OCO2 observation is recorded (which is not used when visualizing the data)
     """
+    # debug
     ds = nc.Dataset(fn)
     xco2 = ds['xco2'][:]
     latitude = ds['latitude'][:]
@@ -60,8 +61,6 @@ def __gen_filelist(path_dir):
     date_infor = np.array([  datetime.strptime('20'+ os.path.split(x)[1][-37:-31], '%Y%m%d')  for x in flist2])
     flist_all = flist2[np.argsort(date_infor)]
     date_infor_all = np.sort(date_infor)
-    # flist_all
-
 
     return flist_all, date_infor_all
 
