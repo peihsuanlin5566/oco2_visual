@@ -2,12 +2,24 @@ import numpy as np
 import matplotlib.pyplot as plt
 from datetime import datetime
 from glob import glob 
-from mpl_toolkits.axes_grid1 import make_axes_locatable
+from mpl_toolkits.axes_grid1 import make_axes_locatable 
 from mpl_toolkits.basemap import Basemap
 import netCDF4 as nc
 import matplotlib as mpl
 import os
 
+
+def validate(date_text):
+    try:
+        datetime.strptime(date_text, '%Y-%m-%d')
+    except ValueError:
+        raise ValueError("Incorrect data format, should be YYYY-MM-DD")
+
+
+def time_format_transform(datetime_string): 
+    datetime_stamp = datetime.strptime(datetime_string, '%Y-%m-%d')
+    datetime_string = datetime.strftime(datetime_stamp, '%Y%m%d')
+    return datetime_string
 
 def __get_data2(fn): 
     """read the netcdf4 data
@@ -21,12 +33,17 @@ def __get_data2(fn):
         time: date & time when OCO2 observation is recorded (which is not used when visualizing the data)
     """
     # debug
-    ds = nc.Dataset(fn)
-    xco2 = ds['xco2'][:]
-    latitude = ds['latitude'][:]
-    longitude = ds['longitude'][:]
-    time = ds['time'][:]
-    ds.close()
+    try:
+        ds = nc.Dataset(fn)
+        xco2 = ds['xco2'][:]
+        latitude = ds['latitude'][:]
+        longitude = ds['longitude'][:]
+        time = ds['time'][:]
+        ds.close()
+    except ValueError:  
+        ds.close()
+        raise ValueError("Error in reading data.")
+
     return xco2, latitude, longitude, time
 
 def __great_circle(lon1, lat1, lon2, lat2):
@@ -64,24 +81,26 @@ def __gen_filelist(path_dir):
 
     return flist_all, date_infor_all
 
-def __get_useful_file(path_dir, time_yy, years=1, \
+def __get_useful_file(path_dir, time_start, time_last,  \
     fov_lon=[139.3, 140.4], fov_lat=[35.15, 36.05]): 
 
     """Find the file that data points are within in the specified FOV. 
     Args: 
         path_dir: path where the data are placed
-        time_y: year 
-        years: duration (in unit of year)
+        time_start: start time for the visualizing duration
+        time_last:  end time for the visualizing duration
         fov_lon, fov_lat: the specified FOV ([139.3, 140.4] and [35.15, 36.05] by default)
 
     output: 
-        useful_file: 
+        useful_file: file list that contain the necessary files  
     """
     flist_all, date_infor_all = __gen_filelist(path_dir)
+    
+    validate(time_start)
+    validate(time_last)
 
-
-    start_time = datetime.strptime('20'+'{}0101'.format(time_yy), '%Y%m%d')
-    end_time   = datetime.strptime('20'+'{}1231'.format(time_yy+years-1) , '%Y%m%d')
+    start_time = datetime.strptime(time_start, '%Y-%m-%d')
+    end_time   = datetime.strptime(time_last , '%Y-%m-%d')
 
     need_ind   = np.where((date_infor_all <= end_time) * (date_infor_all >=start_time ))[0]
 
@@ -177,13 +196,14 @@ def __fig_map_sigle(ax, fov_lon, fov_lat):
     return m
 
 
-def fig_check_value_range(path_dir, time_yy, years=1, \
+def fig_check_value_range(path_dir, time_start, time_last,  \
     xco2_min=380, xco2_max=435, fov_lon=[139.3, 140.4], fov_lat=[35.15, 36.05] ): 
     
     """ generating a figure for confirming the data range during the year.
     Args: 
         path_dir: path of the stored data file.
-        time_yy: year of the file would be fetched. 
+        time_start: 
+        time_last:  
         [xco2_min, xco2_max]: value range in y-axis. (in the [380, 435] window by default)
         fov_lon, fov_lat: the specified FOV of the plotting ([139.3, 140.4] and [35.15, 36.05] by default)
     """    
@@ -192,8 +212,8 @@ def fig_check_value_range(path_dir, time_yy, years=1, \
     plt.close()
 
     flist_all, date_infor_all = __gen_filelist(path_dir)
-    start_time = datetime.strptime('20'+'{}0101'.format(time_yy), '%Y%m%d')
-    end_time = datetime.strptime('20'+'{}1231'.format(time_yy+years-1) , '%Y%m%d')
+    start_time = datetime.strptime( time_start, '%Y-%m-%d')
+    end_time = datetime.strptime(time_last, '%Y-%m-%d')
     need_ind = np.where((date_infor_all <= end_time) * (date_infor_all >=start_time ))[0]
 
     ax = plt.subplot()
@@ -214,13 +234,14 @@ def fig_check_value_range(path_dir, time_yy, years=1, \
     ax.set_xlabel('time')
     ax.set_ylabel('xco2')
 
-    time_yy = os.path.split(useful_file[0])[1][-37:-31]
-
-    ax.set_title('Data collected during 20{}'.format(time_yy))
+    ax.set_title('Data collected during {} - {}'.format(time_start,  time_last))
 
     plt.tight_layout()
+    
 
-    figname = 'fig/xcoc2_20{}.png'.format(time_yy)
+    time_start2 = time_format_transform(time_start)
+    time_last2 = time_format_transform(time_last)
+    figname = 'fig/xcoc2-{}_{}.png'.format(time_start2,time_last2)
     plt.savefig(figname, dpi=250)
 
     print('{} is generated.'.format(figname))
@@ -228,20 +249,21 @@ def fig_check_value_range(path_dir, time_yy, years=1, \
     return 
 
 
-def fig_point_plot(path_dir, time_yy, years=1 ,\
+def fig_point_plot(path_dir, time_start, time_last, \
      xco2_min=380, xco2_max=435, jump=100, fov_lon=[139.3, 140.4], fov_lat=[35.15, 36.05]): 
     
     """ Generating a figure for visualizing 2D distribution of OCO2 observation by simply making a dot plot.
     Args: 
         path_dir: path of the stored data file.
         time_yy: year of the file would be fetched. 
-        years: data duration (unit: year)
-        jump:only pick up data at a 100-datapoint span (i.e., the 0th, 100th, 200th ... data point) so the the plotting process would not be too costy. 
+        time_start: start time for the visualizing duration  
+        time_last: end time for the visualizing duration
+        jump: only pick up data at a 100-datapoint span (i.e., the 0th, 100th, 200th ... data point) so the the plotting process would not be too costy. 
         [xco2_min, xco2_max]: data value range for visualizing. 
         fov_lon, fov_lat: FOV of the map. By default FOV is within a [139.3, 140.4,35.15, 36.05] window.
     """    
     
-    useful_file = __get_useful_file(path_dir, time_yy, years=years)
+    useful_file = __get_useful_file(path_dir, time_start, time_last)
 
     plt.close()
     plt.clf()
@@ -271,7 +293,7 @@ def fig_point_plot(path_dir, time_yy, years=1 ,\
     ax.set_ylim(fov_lat)
     ax.set_xlabel('Longitude ($^o$)')
     ax.set_ylabel('Latitude ($^o$)')
-    ax.set_title('Data collected during 20{}'.format(time_yy))
+    ax.set_title('Data collected during {} - {}'.format(time_start, time_last))
 
     norm = mpl.colors.Normalize(vmin=xco2_min, vmax=xco2_max)
     sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
@@ -282,7 +304,9 @@ def fig_point_plot(path_dir, time_yy, years=1 ,\
 
     plt.tight_layout()
 
-    figname = 'fig/xco2_sat_point_20{}.png'.format(time_yy)
+    time_start2 = time_format_transform(time_start)
+    time_last2 = time_format_transform(time_last)
+    figname = 'fig/xco2_point-{}_{}.png'.format(time_start2,time_last2)
     plt.savefig(figname, dpi=250)
 
     print('{} is generated.'.format(figname))
@@ -290,15 +314,17 @@ def fig_point_plot(path_dir, time_yy, years=1 ,\
     return
 
 
-def fig_map_meshgrid(path_dir, time_yy, grid_num, years=1, \
-     xco2_min=380, xco2_max=435,fov_lon=[139.3, 140.4], fov_lat=[35.15, 36.05]): 
+def fig_map_meshgrid(path_dir, time_start, time_last, \
+        grid_num=int(200/5), xco2_min=380, xco2_max=435,\
+        fov_lon=[139.3, 140.4], fov_lat=[35.15, 36.05]): 
     
     """basically share the same function with `fig_point_plot` but in a mesh grid manner. 
     Grid with multiple data points in it are filled with an averaged value.
     
     Args: 
         path_dir: path to the folder where data is stored (e.g., path_dir = '../../data/data_xco2/oco2_LtCO2_*.nc4').
-        time_yy: target year (start).
+        time_start: start time of the visualizing duration.
+        time_last: end time of the visualizing duration.
         grid_num: a number denoting how many slices that latitude and longitude should be divided into.
         years: duration of the data.
         [xco2_min, xco2_max]: value range in y-axis. 
@@ -307,7 +333,7 @@ def fig_map_meshgrid(path_dir, time_yy, grid_num, years=1, \
 
     """
 
-    useful_file = __get_useful_file(path_dir, time_yy, years=years)
+    useful_file = __get_useful_file(path_dir, time_start, time_last, fov_lon=fov_lon, fov_lat=fov_lat)
 
     x, y, z_map = __make_meshgrid(useful_file, grid_num, xco2_min=xco2_min, xco2_max=xco2_max, fov_lon=fov_lon, fov_lat=fov_lat)
     
@@ -355,8 +381,10 @@ def fig_map_meshgrid(path_dir, time_yy, grid_num, years=1, \
 
     # time_yy = os.path.split(useful_file[0])[1][-37:-31]
     grid_size = round(100/z_map.shape[0])
-    ax.set_title('Data collected during 20{}'.format(time_yy))
-    figname = 'fig/xcoc2_map_meshgrid_20{}_{}.png'.format(time_yy, grid_size)
+    time_start2 = time_format_transform(time_start)
+    time_last2 = time_format_transform(time_last)   
+    ax.set_title('Data collected during {}-{}'.format(time_start, time_last))
+    figname = 'fig/xcoc2_map_meshgrid-{}_{}-{}.png'.format(time_start2, time_last2, grid_size)
 
 
     plt.tight_layout()
@@ -367,15 +395,17 @@ def fig_map_meshgrid(path_dir, time_yy, grid_num, years=1, \
     return 
 
 
-def fig_map_meshgrid_2panels(path_dir, time_yy1, time_yy2, grid_num, years=1, \
-                             xco2_min=380, xco2_max=435, fov_lon=[139.3, 140.4], fov_lat=[35.15, 36.05]): 
+def fig_map_meshgrid_2panels(path_dir, time1_start, time1_last, time2_start, time2_last, \
+                                grid_num=int(200/5), \
+                                xco2_min=380, xco2_max=435, \
+                                fov_lon=[139.3, 140.4], fov_lat=[35.15, 36.05]): 
 
 
     plt.clf()
     plt.close()
 
-    useful_file1= __get_useful_file(path_dir, time_yy1, years=years, fov_lon=fov_lon, fov_lat=fov_lat)
-    useful_file2= __get_useful_file(path_dir, time_yy2, years=years, fov_lon=fov_lon, fov_lat=fov_lat)
+    useful_file1= __get_useful_file(path_dir, time1_start, time1_last, fov_lon=fov_lon, fov_lat=fov_lat)
+    useful_file2= __get_useful_file(path_dir, time2_start, time2_last, fov_lon=fov_lon, fov_lat=fov_lat)
     
     x, y, z_map1 = __make_meshgrid(useful_file1, grid_num, xco2_min=xco2_min, xco2_max=xco2_max, fov_lon=fov_lon, fov_lat=fov_lat )
     x, y, z_map2 = __make_meshgrid(useful_file2, grid_num, xco2_min=xco2_min, xco2_max=xco2_max, fov_lon=fov_lon, fov_lat=fov_lat)
@@ -398,20 +428,23 @@ def fig_map_meshgrid_2panels(path_dir, time_yy1, time_yy2, grid_num, years=1, \
     cax = fig.add_axes([0.2, 0.08, 0.5, 0.03]) 
     __cbar(cax,cs, xco2_min, xco2_max)
 
+    # transform the datetime stamp string format
+
+    time1_start2 = time_format_transform(time1_start)
+    time1_last2 = time_format_transform(time1_last)
+
+    time2_start2 = time_format_transform(time2_start)
+    time2_last2 = time_format_transform(time2_last)
 
     # add titles
-    if years == 1:
-        axs[0].set_title('20{}'.format(time_yy1), fontsize=20)
-        axs[1].set_title('20{}'.format(time_yy2), fontsize=20 )
-    else: 
-        axs[0].set_title('20{}-20{}'.format(time_yy1, time_yy1+years-1), fontsize=20    )
-        axs[1].set_title('20{}-20{}'.format(time_yy2, time_yy2+years-1), fontsize=20    )
+    axs[0].set_title('20{}-20{}'.format(time1_start2, time1_last2), fontsize=20    )
+    axs[1].set_title('20{}-20{}'.format(time2_start2, time2_last2), fontsize=20    )
         
 
     # final 
     plt.tight_layout()
 
-    figname = 'fig/xcoc2_map_meshgrid_20{}_20{}_{}_{}years.png'.format(time_yy1, time_yy2, grid_size, years)
+    figname = 'fig/xcoc2_map_meshgrid-{}_{}-{}_{}-{}.png'.format(time1_start2, time1_last2, time2_start2, time1_last2, grid_size,)
     plt.savefig(figname, dpi=250)
     print('{} is generated.'.format(figname))
 

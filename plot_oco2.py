@@ -3,18 +3,24 @@ import os
 import argparse
 import time
 from util import *
+from datetime import datetime
 
 def get_args_parser(known=False):
     
     parser = argparse.ArgumentParser('OCO2 visualization tool')
 
-    parser.add_argument('--year', default=2015, type=int, help='year of the first data')
+    # indicating the time duration for plotting the CO2 observaton 
+    parser.add_argument('--date_init', default="2015-01-01", type=str, 
+            help='the stat data of the data (format: yyyy-mm-dd)')
+    parser.add_argument('--date_lat', default="2015-02-01", type=str, 
+            help='the last date of the data (format: yyyy-mm-dd)')
+
+    # optional: mesh grid arguments 
     parser.add_argument('--data_path', help='path for placing the OCO2 data')
-    parser.add_argument('--duration', default=1, type=int, help='duraton for ploting the data')
     parser.add_argument('--grid_size', default=5, type=float, help='grid size in km')
     parser.add_argument('--single_mesh_map', default=True, type=bool, help='Plot a meshgrid co2 map')
     
-    # optional: FOV 
+    # optional: FOV srguments
     parser.add_argument('--fov_lon_left', default=False, type=float, help='Indicating the FOV')
     parser.add_argument('--fov_lon_right', default=False, type=float, help='Indicating the FOV')
     parser.add_argument('--fov_lat_up', default=False, type=float, help='Indicating the FOV')
@@ -54,10 +60,13 @@ if __name__ == "__main__":
     grid_size = args.grid_size
     grid_num = int(200/grid_size)
 
-    # year
-    time_yy = args.year
-    time_yy = time_yy - 2000
-    
+    # time duration specification 
+    date_str1 = args.time_init
+    date_str2 = args.time_last
+
+    date_obj1 = datetime.strptime(date_str1, '%Y-%m-%d')
+    date_obj2 = datetime.strptime(date_str2, '%Y-%m-%d')
+
     # duration
     duration = args.duration
     
